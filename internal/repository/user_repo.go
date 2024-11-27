@@ -1,56 +1,32 @@
 package repository
 
 import (
-	"errors"
 	"gorm.io/gorm"
 	"rentora-go/internal/model"
 )
 
+type UserRepository interface {
+	GetUserByEmail(email string) (*model.User, error)
+	CreateUser(user *model.User) error
+}
 
-type UserRepositoryImpl struct {
+type userRepository struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) *UserRepositoryImpl {
-	return &UserRepositoryImpl{db}
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &userRepository{db: db}
 }
 
-
-
-func (r *UserRepositoryImpl) Create(user *model.User) error {
-	if error := user.HashPassword(); error != nil {
-		return error
+func (r *userRepository) GetUserByEmail(email string) (*model.User, error) {
+	var user model.User
+	err := r.db.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
 	}
+	return &user, nil
+}
 
-	var existingUser model.User
-	if result := r.db.Where("email = ?", user.Email).First(&existingUser); result.Error == nil {
-		return errors.New("user with email already exists")
-	}
-
+func (r *userRepository) CreateUser(user *model.User) error {
 	return r.db.Create(user).Error
 }
-
-
-
-func (r *UserRepositoryImpl) FindByEmail(email string) (*model.User, error) {
-	var user model.User
-	if result := r.db.Where("email = ?", email).First(&user); result.Error != nil {
-		return nil, result.Error
-	}
-
-	return &user, nil
-}
-
-
-func (r *UserRepositoryImpl) FindById(id uint) (*model.User, error) {
-	var user model.User
-	if result := r.db.Where("id = ?", id).First(&user); result.Error != nil {
-		return nil, result.Error
-	}
-
-	return &user, nil
-}
-
-
-
-

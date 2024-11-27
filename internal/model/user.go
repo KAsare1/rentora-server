@@ -90,3 +90,15 @@ func (u *User) ToDTO() UserDTO {
 		Role:      u.Role,
 	}
 }
+
+
+// LoginRequest represents the request payload for the login endpoint
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// RefreshTokenRequest represents the request payload for the refresh token endpoint
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
