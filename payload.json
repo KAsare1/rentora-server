@@ -1,0 +1,23 @@
+{
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@example.com",
+    "password": "securePassword123",
+    "phone_number": "+1234567890",
+    "date_of_birth": "1990-05-15",
+    "address": "123 Main Street",
+    "city": "New York",
+    "region": "NY",
+    "country": "USA",
+    "postal_code": "10001",
+    "drivers_license_number": "D1234567",
+    "drivers_license_state": "NY",
+    "drivers_license_expiration": "2030-12-31",
+    "accepted_terms_of_service": true
+  }
+
+{
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+}
+
