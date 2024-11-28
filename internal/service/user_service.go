@@ -4,6 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"log"
+
+	"rentora-go/internal/model"
 	"rentora-go/internal/repository"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,6 +15,8 @@ import (
 type AuthService interface {
 	Authenticate(email, password string) (string, string, error)
 	RefreshToken(refreshToken string) (string, string, error)
+	CreateUser(user *model.User) error                // Add this
+	GetUserByEmail(email string) (*model.User, error)
 }
 
 type authService struct {
@@ -30,22 +35,32 @@ type Claims struct {
 }
 
 func (s *authService) Authenticate(email, password string) (string, string, error) {
-	user, err := s.userRepo.GetUserByEmail(email)
-	if err != nil || !user.CheckPassword(password) {
-		return "", "", errors.New("invalid email or password")
-	}
+    user, err := s.userRepo.GetUserByEmail(email)
+    if err != nil {
+        log.Println("Error fetching user by email:", err)
+        return "", "", errors.New("invalid email or password")
+    }
+    log.Println("User fetched:", user)
 
-	accessToken, err := s.generateToken(user.ID, email, time.Minute*15)
-	if err != nil {
-		return "", "", err
-	}
+    if !user.CheckPassword(password) {
+        log.Println("Password check failed")
+        return "", "", errors.New("invalid email or password")
+    }
+    log.Println("Password check passed")
 
-	refreshToken, err := s.generateToken(user.ID, email, time.Hour*24*7)
-	if err != nil {
-		return "", "", err
-	}
+    accessToken, err := s.generateToken(user.ID, email, time.Minute*15)
+    if err != nil {
+        log.Println("Error generating access token:", err)
+        return "", "", err
+    }
 
-	return accessToken, refreshToken, nil
+    refreshToken, err := s.generateToken(user.ID, email, time.Hour*24*7)
+    if err != nil {
+        log.Println("Error generating refresh token:", err)
+        return "", "", err
+    }
+
+    return accessToken, refreshToken, nil
 }
 
 func (s *authService) RefreshToken(refreshToken string) (string, string, error) {
@@ -83,4 +98,13 @@ func (s *authService) generateToken(userID uint, email string, duration time.Dur
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.jwtKey)
+}
+
+
+func (s *authService) GetUserByEmail(email string) (*model.User, error) {
+	return s.userRepo.GetUserByEmail(email)
+}
+
+func (s *authService) CreateUser(user *model.User) error {
+	return s.userRepo.CreateUser(user)
 }

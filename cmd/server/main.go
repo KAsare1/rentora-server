@@ -1,53 +1,109 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 
+
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/joho/godotenv"
-
-	
+	"github.com/go-chi/chi/v5"
 	"rentora-go/internal/handler"
 	"rentora-go/internal/model"
 	"rentora-go/internal/repository"
 	"rentora-go/internal/service"
+	"github.com/go-chi/cors"
 )
 
 func main() {
-	// Get database credentials from environment variables
-	err := godotenv.Load()
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	// Get environment variables
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
+	jwtSecret := os.Getenv("JWT_SECRET")
 
-	// Construct DSN (Data Source Name)
-	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?charset=utf8mb4&parseTime=True&loc=Local"
-
-	// Initialize the database
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Failed to connect to the database:", err)
+	if dbUser == "" || dbPassword == "" || dbHost == "" || dbPort == "" || dbName == "" || jwtSecret == "" {
+		log.Fatal("Required environment variables are missing")
 	}
 
-	// Auto-migrate the User model
+	// Initialize database
+	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+
+	// Auto-migrate
 	db.AutoMigrate(&model.User{})
 
-	// Dependency injection
+	// Initialize dependencies
 	userRepo := repository.NewUserRepository(db)
-	authService := service.NewAuthService(userRepo, []byte(os.Getenv("JWT_SECRET")))
+	authService := service.NewAuthService(userRepo, []byte(jwtSecret))
 	authHandler := handler.NewAuthHandler(authService)
 
 	// Set up routes
-	http.HandleFunc("/login", authHandler.Login)
-	http.HandleFunc("/refresh", authHandler.Refresh)
+	r := chi.NewRouter()
 
-	// Start the server
-	log.Println("Server is running on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+
+
+	r.Post("/login", authHandler.Login)
+	r.Post("/refresh", authHandler.Refresh)
+	r.Post("/register", authHandler.Register)
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		sqlDB, err := db.DB() // Extract the underlying *sql.DB
+		if err != nil {
+			http.Error(w, "Failed to retrieve database instance", http.StatusInternalServerError)
+			return
+		}
+	
+		// Ping the database to check its health
+		if err := sqlDB.Ping(); err != nil {
+			http.Error(w, "Database unreachable", http.StatusServiceUnavailable)
+			return
+		}
+	
+		w.Write([]byte("OK"))
+	})
+
+	// Start server
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+
+	go func() {
+		log.Println("Server is running on port 8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+
+	log.Println("Shutting down server...")
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Fatalf("Server shutdown error: %v", err)
+	}
+	log.Println("Server stopped")
 }

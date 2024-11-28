@@ -3,6 +3,7 @@ package model
 import (
 	"golang.org/x/crypto/bcrypt"
 	"time"
+	"log"
 )
 
 // User represents a user in the system
@@ -17,7 +18,7 @@ type User struct {
 
 	// Personal Information
 	PhoneNumber           string         `gorm:"not null" json:"phone_number"`
-	DateOfBirth           time.Time      `json:"date_of_birth"` // Changed to time.Time for proper date handling
+	DateOfBirth           *Date      `gorm:"type:date" json:"date_of_birth"` // Changed to Date for proper date handling
 	Address               string         `json:"address"`
 	City                  string         `json:"city"`
 	Region                string         `json:"region"`
@@ -27,13 +28,13 @@ type User struct {
 	// Driver's License Information
 	DriversLicenseNumber  string         `json:"drivers_license_number"`
 	DriversLicenseState   string         `json:"drivers_license_state"`
-	DriversLicenseExpiration time.Time   `json:"drivers_license_expiration"` // Changed to time.Time
+	DriversLicenseExpiration Date   `gorm:"type:date" json:"drivers_license_expiration"` // Changed to Date
 
 	// Account Status and Verification
 	IsVerified            bool           `gorm:"default:false" json:"is_verified"`
 	IsActive              bool           `gorm:"default:true" json:"is_active"`
 	RegistrationDate      time.Time      `gorm:"autoCreateTime" json:"registration_date"`
-	LastLoginDate         time.Time      `json:"last_login_date"`
+	LastLoginDate         *time.Time      `json:"last_login_date"`
 
 	// Payment and Billing
 	PaymentMethod         string         `json:"payment_method"`
@@ -47,7 +48,7 @@ type User struct {
 
 	// Security and Compliance
 	AcceptedTermsOfService bool          `gorm:"default:false" json:"accepted_terms_of_service"`
-	TermsAcceptedDate      time.Time     `json:"terms_accepted_date"`
+	TermsAcceptedDate      *time.Time     `json:"terms_accepted_date"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -63,12 +64,15 @@ func (u *User) HashPassword() error {
 	return nil
 }
 
-// CheckPassword compares the provided password with the user's hashed password.
 func (u *User) CheckPassword(password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
-	return err == nil
+    log.Println("Provided password:", password)
+    log.Println("Hashed password in DB:", u.Password)
+    err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+    if err != nil {
+        log.Println("Password comparison failed:", err)
+    }
+    return err == nil
 }
-
 // UserDTO is a data transfer object for the User model (to return to the API).
 type UserDTO struct {
 	ID        uint   `json:"id"`
