@@ -5,58 +5,63 @@ import (
 	"net/http"
 
 	"rentora-go/internal/model"
-	"rentora-go/internal/repository"
 	"rentora-go/internal/service"
 )
 
 type AuthHandler struct {
-	userRepo   repository.UserRepository
-	jwtService service.JWTService
+	authService service.AuthService
 }
 
-func NewAuthHandler(userRepo repository.UserRepository, jwtService service.JWTService) *AuthHandler {
-	return &AuthHandler{userRepo: userRepo, jwtService: jwtService}
+func NewAuthHandler(authService service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
 }
 
+// Login handles user login requests
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var creds model.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+	var req model.LoginRequest
+
+	// Decode the request payload into the LoginRequest struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	user, err := h.userRepo.GetUserByEmail(creds.Email)
-	if err != nil || !user.CheckPassword(creds.Password) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	// Authenticate the user
+	accessToken, refreshToken, err := h.authService.Authenticate(req.Email, req.Password)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, refreshToken, _ := h.jwtService.GenerateTokens(user.Email)
-	response := map[string]string{
+	// Respond with the tokens
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-	}
-
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	var request model.RefreshTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+// Refresh handles token refresh requests
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req model.RefreshTokenRequest
+
+	// Decode the request payload into the RefreshTokenRequest struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	email, err := h.jwtService.ValidateRefreshToken(request.RefreshToken)
+	// Refresh the tokens
+	accessToken, refreshToken, err := h.authService.RefreshToken(req.RefreshToken)
 	if err != nil {
-		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	newAccessToken, _, _ := h.jwtService.GenerateTokens(email)
-	response := map[string]string{
-		"access_token": newAccessToken,
-	}
-
-	json.NewEncoder(w).Encode(response)
+	// Respond with the new tokens
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
 }
