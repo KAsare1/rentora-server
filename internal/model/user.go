@@ -96,6 +96,20 @@ func (u *User) ToDTO() UserDTO {
 }
 
 
+type UserUpdateRequest struct {
+	Email                 string    `json:"email" validate:"omitempty,email"`
+	Password              string    `json:"password" validate:"omitempty,min=8"`
+	PhoneNumber           string    `json:"phone_number" validate:"omitempty,e164"`
+	Address               string    `json:"address" validate:"omitempty"`
+	City                  string    `json:"city" validate:"omitempty"`
+	Region                string    `json:"region" validate:"omitempty"`
+	Country               string    `json:"country" validate:"omitempty,iso3166_1_alpha2"`
+	PostalCode            string    `json:"postal_code" validate:"omitempty"`
+	DriversLicenseExpiration *Date  `json:"drivers_license_expiration" validate:"omitempty"`
+	PaymentMethod         string    `json:"payment_method" validate:"omitempty,oneof=credit_card debit_card paypal bank_transfer"`
+	PreferredVehicleType  string    `json:"preferred_vehicle_type" validate:"omitempty,oneof=sedan suv truck compact luxury electric hybrid"`
+}
+
 // LoginRequest represents the request payload for the login endpoint
 type LoginRequest struct {
 	Email    string `json:"email"`

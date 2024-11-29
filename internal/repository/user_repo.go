@@ -12,6 +12,7 @@ import (
 
 type UserRepository interface {
 	GetUserByEmail(email string) (*model.User, error)
+	GetUserByID(userID uint) (*model.User, error)
 	CreateUser(user *model.User) error
 	UpdateUser(user *model.User) error
 	ListUsers(limit, offset int) ([]model.User, error)
@@ -24,6 +25,17 @@ type userRepository struct {
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
+
+
+func (r *userRepository) GetUserByID(userID uint) (*model.User, error) {
+	var user model.User
+	err := r.db.First(&user, userID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 
 func (r *userRepository) GetUserByEmail(email string) (*model.User, error) {
 	var user model.User
@@ -45,8 +57,9 @@ func (r *userRepository) CreateUser(user *model.User) error {
 }
 
 func (r *userRepository) UpdateUser(user *model.User) error {
-	if err := r.db.Save(user).Error; err != nil {
-		return fmt.Errorf("failed to update user: %w", err)
+	result := r.db.Save(user)
+	if result.Error != nil {
+		return errors.New("failed to update user: " + result.Error.Error())
 	}
 	return nil
 }

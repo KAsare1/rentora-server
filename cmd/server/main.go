@@ -7,16 +7,19 @@ import (
 	"os"
 	"os/signal"
 
-
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/go-chi/chi/v5"
 	"rentora-go/internal/handler"
+	"rentora-go/internal/middleware"
 	"rentora-go/internal/model"
 	"rentora-go/internal/repository"
 	"rentora-go/internal/service"
+
+	"github.com/go-chi/chi/v5"
+
+	// "rentora-go/internal/middleware"
 	"github.com/go-chi/cors"
 )
 
@@ -32,11 +35,13 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
-	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtSecretStr := (os.Getenv("JWT_SECRET"))
 
-	if dbUser == "" || dbPassword == "" || dbHost == "" || dbPort == "" || dbName == "" || jwtSecret == "" {
+	if dbUser == "" || dbPassword == "" || dbHost == "" || dbPort == "" || dbName == "" || jwtSecretStr == "" {
 		log.Fatal("Required environment variables are missing")
 	}
+
+	jwtSecret := []byte(jwtSecretStr)
 
 	// Initialize database
 	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?charset=utf8mb4&parseTime=True&loc=Local"
@@ -63,10 +68,14 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	
+
 
 	r.Post("/login", authHandler.Login)
 	r.Post("/refresh", authHandler.Refresh)
 	r.Post("/register", authHandler.Register)
+	r.With(middleware.AuthMiddleware(jwtSecret)).Post("/update", authHandler.UpdateUser)
+
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		sqlDB, err := db.DB() // Extract the underlying *sql.DB
 		if err != nil {

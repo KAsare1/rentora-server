@@ -17,6 +17,23 @@ type AuthService interface {
 	RefreshToken(refreshToken string) (string, string, error)
 	CreateUser(user *model.User) error                // Add this
 	GetUserByEmail(email string) (*model.User, error)
+
+	UpdateUser(userID uint, updateReq UpdateUserRequest) error
+	GetUserByID(userID uint) (*model.User, error)
+}
+
+type UpdateUserRequest struct {
+	Email                    *string
+	Password                 *string
+	PhoneNumber              *string
+	Address                  *string
+	City                     *string
+	Region                   *string
+	Country                  *string
+	PostalCode               *string
+	DriversLicenseExpiration *string
+	PaymentMethod            *string
+	PreferredVehicleType     *string
 }
 
 type authService struct {
@@ -107,4 +124,76 @@ func (s *authService) GetUserByEmail(email string) (*model.User, error) {
 
 func (s *authService) CreateUser(user *model.User) error {
 	return s.userRepo.CreateUser(user)
+}
+
+
+
+func (s *authService) UpdateUser(userID uint, updateReq UpdateUserRequest) error {
+    // Fetch the existing user
+    user, err := s.userRepo.GetUserByID(userID)
+    if err != nil {
+        return errors.New("user not found")
+    }
+
+    // Validate and update email (check for uniqueness)
+    if updateReq.Email != nil {
+        // Check if email is already in use by another user
+        existingUser, _ := s.userRepo.GetUserByEmail(*updateReq.Email)
+        if existingUser != nil && existingUser.ID != userID {
+            return errors.New("email already in use")
+        }
+        user.Email = *updateReq.Email
+    }
+
+    // Update password with hashing
+    if updateReq.Password != nil {
+        user.Password = *updateReq.Password
+        if err := user.HashPassword(); err != nil {
+            return errors.New("failed to update password")
+        }
+    }
+
+    // Update other fields
+    if updateReq.PhoneNumber != nil {
+        user.PhoneNumber = *updateReq.PhoneNumber
+    }
+    if updateReq.Address != nil {
+        user.Address = *updateReq.Address
+    }
+    if updateReq.City != nil {
+        user.City = *updateReq.City
+    }
+    if updateReq.Region != nil {
+        user.Region = *updateReq.Region
+    }
+    if updateReq.Country != nil {
+        user.Country = *updateReq.Country
+    }
+    if updateReq.PostalCode != nil {
+        user.PostalCode = *updateReq.PostalCode
+    }
+
+    // Handle DriversLicenseExpiration
+    if updateReq.DriversLicenseExpiration != nil {
+        parsedTime, err := time.Parse(time.DateOnly, *updateReq.DriversLicenseExpiration)
+        if err != nil {
+            return errors.New("invalid drivers license expiration date format")
+        }
+        expirationDate := model.Date{Time: parsedTime}
+        user.DriversLicenseExpiration = expirationDate
+    }
+
+    if updateReq.PaymentMethod != nil {
+        user.PaymentMethod = *updateReq.PaymentMethod
+    }
+    if updateReq.PreferredVehicleType != nil {
+        user.PreferredVehicleType = *updateReq.PreferredVehicleType
+    }
+
+    // Save the updated user
+    return s.userRepo.UpdateUser(user)
+}
+
+func (s *authService) GetUserByID(userID uint) (*model.User, error) {
+    return s.userRepo.GetUserByID(userID)
 }
