@@ -17,8 +17,6 @@ import (
 	"rentora-go/internal/service"
 
 	"github.com/go-chi/chi/v5"
-
-	// "rentora-go/internal/middleware"
 	"github.com/go-chi/cors"
 )
 
@@ -50,7 +48,9 @@ func main() {
 	}
 
 	// Auto-migrate
-	db.AutoMigrate(&model.User{}, &model.Car{})
+	db.AutoMigrate(&model.User{}, 
+		&model.Car{},
+	&model.Booking{})
 
 	// Initialize dependencies
 	userRepo := repository.NewUserRepository(db)
@@ -84,7 +84,7 @@ func main() {
 
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		sqlDB, err := db.DB() // Extract the underlying *sql.DB
+		sqlDB, err := db.DB() 
 		if err != nil {
 			http.Error(w, "Failed to retrieve database instance", http.StatusInternalServerError)
 			return

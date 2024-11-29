@@ -21,3 +21,31 @@
     "password": "securePassword123"
 }
 
+
+
+
+{
+  "owner_id": 1,
+  "make": "Toyota",
+  "model": "Camry",
+  "year": 2022,
+  "color": "Blue",
+  "license_plate": "ABC-1234",
+  "location": "Downtown City Center",
+  "daily_rate": 50.00,
+  "availability": true,
+  "features": ["GPS", "Air Conditioning", "Bluetooth", "Backup Camera"],
+  "description": "A comfortable and reliable sedan, perfect for city driving and long trips."
+}
+
+
+
+{
+  "car_id": 123,
+  "user_id": 456,
+  "start_date": "2024-12-01T10:00:00Z",
+  "end_date": "2024-12-10T10:00:00Z",
+  "pickup_location": "Downtown City Center",
+  "dropoff_location": "Downtown City Center",
+  "total_price": 500.00
+}
