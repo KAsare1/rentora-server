@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 
 	"rentora-go/internal/handler"
-	"rentora-go/internal/middleware"
 	"rentora-go/internal/model"
 	"rentora-go/internal/repository"
 	"rentora-go/internal/service"
@@ -51,12 +50,20 @@ func main() {
 	}
 
 	// Auto-migrate
-	db.AutoMigrate(&model.User{})
+	db.AutoMigrate(&model.User{}, &model.Car{})
 
 	// Initialize dependencies
 	userRepo := repository.NewUserRepository(db)
+	carRepo := repository.NewCarRepository(db)
+	bookingRepo := repository.NewBookingRepository(db)
+
 	authService := service.NewAuthService(userRepo, []byte(jwtSecret))
+	carService := service.NewCarService(carRepo)
+	bookingService := service.NewBookingService(bookingRepo)
+
 	authHandler := handler.NewAuthHandler(authService)
+	carHandler := handler.NewCarHandler(carService)
+	bookingHandler := handler.NewBookingHandler(bookingService)
 
 	// Set up routes
 	r := chi.NewRouter()
@@ -71,10 +78,10 @@ func main() {
 	
 
 
-	r.Post("/login", authHandler.Login)
-	r.Post("/refresh", authHandler.Refresh)
-	r.Post("/register", authHandler.Register)
-	r.With(middleware.AuthMiddleware(jwtSecret)).Post("/update", authHandler.UpdateUser)
+    handler.RegisterUserRoutes(r, authHandler)
+    handler.RegisterCarRoutes(r, carHandler)
+	handler.RegisterBookingRoutes(r, bookingHandler)
+
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		sqlDB, err := db.DB() // Extract the underlying *sql.DB

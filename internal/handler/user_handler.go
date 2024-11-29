@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"rentora-go/internal/middleware"
 	"rentora-go/internal/model"
 	"rentora-go/internal/service"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type AuthHandler struct {
@@ -194,4 +198,15 @@ func (h *AuthHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(updatedUser.ToDTO())
+}
+
+
+
+
+func RegisterUserRoutes(r chi.Router, authHandler *AuthHandler) {
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
+    r.Post("/login", authHandler.Login)
+    r.Post("/refresh", authHandler.Refresh)
+    r.Post("/register", authHandler.Register)
+    r.With(middleware.AuthMiddleware(jwtSecret)).Post("/update", authHandler.UpdateUser)
 }
